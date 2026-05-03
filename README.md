@@ -1,8 +1,8 @@
-# 🛡️ AETHELOS — AI-Powered Secure Operating System
+# 🛡️ AETHEL_OS — AI-Powered Secure Operating System
 
 🚀 **Overview**
 
-AETHELOS is a distributed, security-first AI operating system dashboard that combines intelligent agents with enterprise-grade cybersecurity architecture.
+AETHEL_OS is a distributed, security-first AI operating system dashboard that combines intelligent agents with enterprise-grade cybersecurity architecture.
 
 It goes beyond traditional apps by integrating:
 
@@ -95,9 +95,6 @@ REDIS_URL=your_redis_connection_string
 # Keep other credentials here as well
 ```
 
-⚠️ **Important**
-- **Never commit `.env`**
-- Use `.env.example` for reference
 
 ## 📦 Installation
 
@@ -135,7 +132,7 @@ npm run dev
 - Behavior-driven security
 - Adaptive response
 
-## 📊 Why AETHELOS?
+## 📊 Why AETHEL_OS?
 
 Most projects stop at:
 - Auth
