@@ -20,10 +20,13 @@ import {
   ChevronRight,
   ExternalLink,
   Loader2,
-  RefreshCcw
+  RefreshCcw,
+  LogOut
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { getCEOSummary, summarizeSecurityLogs, generateMarketingIdeas, generateSalesFollowUp } from './services/aiService';
+import { auth, loginWithGoogle, logout } from './firebase';
+import { onAuthStateChanged, User } from 'firebase/auth';
 
 // Types
 interface Agent {
@@ -35,8 +38,13 @@ interface Agent {
   lastAction: string;
 }
 
+let retryAfterTimestamp = 0;
+
 export default function App() {
   const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<User | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  
   const [overview, setOverview] = useState<any>(null);
   const [logs, setLogs] = useState<string[]>([]);
   const [tasks, setTasks] = useState<any[]>([]);
@@ -51,6 +59,14 @@ export default function App() {
   const [selectedLead, setSelectedLead] = useState<any>(null);
   const [isGeneratingEmail, setIsGeneratingEmail] = useState(false);
   const [activeTab, setActiveTab] = useState('dashboard');
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+      setAuthLoading(false);
+    });
+    return () => unsubscribe();
+  }, []);
 
   const navItems = [
     { id: 'dashboard', icon: LayoutDashboard },
@@ -70,19 +86,45 @@ export default function App() {
   ];
 
   const fetchData = async () => {
+    if (!user) return; // Wait for authentication
+    if (Date.now() < retryAfterTimestamp) {
+       console.warn("Client respecting Retry-After backoff window...");
+       return;
+    }
+
     try {
+      const token = await user.getIdToken();
+      const headers = { Authorization: `Bearer ${token}` };
+
+      const fetchApi = async (url: string) => {
+        const response = await fetch(url, { headers });
+        if (response.status === 429) {
+           const retryAfter = response.headers.get("Retry-After");
+           if (retryAfter) {
+              retryAfterTimestamp = Date.now() + parseInt(retryAfter, 10) * 1000;
+           }
+        }
+        
+        const json = await response.json();
+        if (!json.success) {
+           console.error(`API Error on ${url}:`, json.error);
+           throw new Error(json.error || 'Unknown error');
+        }
+        return json.data;
+      };
+
       const [ovRes, logRes, taskRes, leadRes, markRes] = await Promise.all([
-        fetch('/api/overview').then(r => r.json()),
-        fetch('/api/logs').then(r => r.json()),
-        fetch('/api/tasks').then(r => r.json()),
-        fetch('/api/leads').then(r => r.json()),
-        fetch('/api/marketing').then(r => r.json()),
+        fetchApi('/api/overview'),
+        fetchApi('/api/logs'),
+        fetchApi('/api/tasks'),
+        fetchApi('/api/leads'),
+        fetchApi('/api/marketing'),
       ]);
 
       setOverview(ovRes);
-      setLogs(logRes.logs);
-      setTasks(taskRes.tasks);
-      setLeads(leadRes.leads);
+      setLogs(logRes.logs || []);
+      setTasks(taskRes.tasks || []);
+      setLeads(leadRes.leads || []);
       setMarketing(markRes);
 
       // Perform AI Analysis on the FE
@@ -120,10 +162,43 @@ export default function App() {
   };
 
   useEffect(() => {
+    if (!user) return;
     fetchData();
     const interval = setInterval(fetchData, 30000); // Polling every 30s
     return () => clearInterval(interval);
-  }, []);
+  }, [user]);
+
+  if (authLoading) {
+    return (
+      <div className="h-screen w-full flex flex-col items-center justify-center bg-dashboard-bg">
+        <motion.div
+          animate={{ rotate: 360 }}
+          transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
+        >
+          <Cpu className="w-12 h-12 text-dashboard-accent" />
+        </motion.div>
+        <p className="mt-4 font-mono text-dashboard-muted animate-pulse">Authenticating...</p>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="h-screen w-full flex flex-col items-center justify-center bg-dashboard-bg text-white border-4 border-dashboard-border">
+        <div className="brutalist-card p-12 flex flex-col items-center max-w-md w-full border-dashboard-accent">
+          <h1 className="text-4xl bold-heading mb-4 text-center">AETHEL_OS</h1>
+          <p className="mono-label text-dashboard-muted mb-8 text-center uppercase">Secure Access Required</p>
+          <button 
+            onClick={loginWithGoogle}
+            className="w-full py-4 bg-dashboard-accent text-black font-black uppercase tracking-widest hover:bg-dashboard-success transition-colors flex items-center justify-center gap-3"
+          >
+            <ShieldCheck size={20} />
+            Authenticate via Google
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
@@ -164,6 +239,14 @@ export default function App() {
               </button>
             )
           })}
+          
+          <button
+            onClick={logout}
+            className="w-8 h-8 flex items-center justify-center text-dashboard-alert border-2 border-transparent hover:border-dashboard-alert transition-all transform hover:rotate-12 mt-auto"
+            title="Logout"
+          >
+            <LogOut size={20} />
+          </button>
         </nav>
 
         <div className="mt-auto mb-4 text-[10px] uppercase font-bold tracking-[0.2em] [writing-mode:vertical-lr] rotate-180 opacity-30">
@@ -450,6 +533,13 @@ export default function App() {
                  <h2 className="text-2xl font-black uppercase text-white">System Configuration</h2>
               </div>
               <div className="space-y-8">
+                 <div>
+                    <label className="mono-label block mb-3 text-dashboard-muted text-xs">Auth Account</label>
+                    <div className="p-4 bg-dashboard-accent/10 border border-dashboard-accent flex justify-between items-center text-dashboard-accent font-mono text-sm">
+                       <span>{user.email}</span>
+                       <ShieldCheck size={18} />
+                    </div>
+                 </div>
                  <div>
                     <label className="mono-label block mb-3 text-dashboard-muted text-xs">GEMINI_API_KEY Configured</label>
                     <div className="p-4 bg-dashboard-success/10 border border-dashboard-success flex justify-between items-center text-dashboard-success font-mono text-sm">
