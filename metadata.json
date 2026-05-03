@@ -1,0 +1,6 @@
+{
+  "name": "AI Operating System Dashboard",
+  "description": "A mission-control dashboard powered by multiple AI agents (CEO, Security, Ops, Sales, Marketing) for business automation and log analysis.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}

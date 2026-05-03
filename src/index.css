@@ -1,0 +1,31 @@
+@import "tailwindcss";
+
+@theme {
+  --color-dashboard-bg: #000000;
+  --color-dashboard-card: #111111;
+  --color-dashboard-border: #222222;
+  --color-dashboard-accent: #3b82f6;
+  --color-dashboard-success: #00ff41;
+  --color-dashboard-alert: #ff3d3d;
+  --color-dashboard-warning: #facc15;
+  --color-dashboard-text: #ffffff;
+  --color-dashboard-muted: #666666;
+}
+
+@layer base {
+  body {
+    @apply bg-dashboard-bg text-dashboard-text font-sans antialiased;
+  }
+}
+
+.brutalist-card {
+  @apply bg-dashboard-card border border-dashboard-border transition-colors duration-200;
+}
+
+.bold-heading {
+  @apply font-black tracking-tighter leading-none uppercase;
+}
+
+.mono-label {
+  @apply font-mono text-[10px] tracking-widest uppercase;
+}
